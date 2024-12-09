@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// schema.prisma
+model User {
+  user_id       Int      @id @default(autoincrement())
+  username      String   @unique
+  email         String   @unique
+  password      String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  walletuser_id Int      @unique
+
+  transactions_sent     Transaction[] @relation("SentTransactions")
+  transactions_received Transaction[] @relation("ReceivedTransactions")
+  wallets               Wallet[]
+  orders                Order[]
+  Payment               Payment[]
+  fiat_wallets          FiatWallet[]
+}
+
+model Cryptocurrency {
+  crypto_id  Int      @id @default(autoincrement())
+  name       String
+  symbol     String   @unique
+  price_usd  Float
+  created_at DateTime @default(now())
+
+  orders       Order[]
+  transactions Transaction[]
+  wallets      Wallet[]
+}
+
+model FiatCurrency {
+  fiat_id       Int      @id @default(autoincrement())
+  name          String
+  symbol        String   @unique
+  exchange_rate Float
+  created_at    DateTime @default(now())
+
+  payments     Payment[]
+  fiat_wallets FiatWallet[]
+  Order        Order[]
+  Transaction  Transaction[]
+}
+
+model Order {
+  order_id       Int      @id @default(autoincrement())
+  user_id        Int
+  crypto_id      Int?
+  fiat_id        Int?
+  order_type     String // 'Buy' or 'Sell'
+  quantity       Float
+  price_per_unit Float
+  status         String // 'Pending', 'Completed', 'Canceled'
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  user           User            @relation(fields: [user_id], references: [user_id])
+  cryptocurrency Cryptocurrency? @relation(fields: [crypto_id], references: [crypto_id])
+  fiat_currency  FiatCurrency?   @relation(fields: [fiat_id], references: [fiat_id])
+}
+
+model Transaction {
+  transaction_id   Int      @id @default(autoincrement())
+  sender_user_id   Int
+  receiver_user_id Int?
+  crypto_id        Int?
+  fiat_id          Int?
+  quantity         Float
+  transaction_type String // 'Transfer' or 'External Transfer'
+  status           String // 'Success', 'Failed', 'Pending'
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  sender_user    User            @relation("SentTransactions", fields: [sender_user_id], references: [walletuser_id])
+  receiver_user  User?           @relation("ReceivedTransactions", fields: [receiver_user_id], references: [walletuser_id])
+  cryptocurrency Cryptocurrency? @relation(fields: [crypto_id], references: [crypto_id])
+  fiat_currency  FiatCurrency?   @relation(fields: [fiat_id], references: [fiat_id])
+}
+
+model Wallet {
+  wallet_id     Int @id @default(autoincrement())
+  walletuser_id Int
+  crypto_id     Int
+
+  balance    Float    @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user           User           @relation(fields: [walletuser_id], references: [walletuser_id])
+  cryptocurrency Cryptocurrency @relation(fields: [crypto_id], references: [crypto_id])
+}
+
+model FiatWallet {
+  wallet_id     Int      @id @default(autoincrement())
+  walletuser_id Int
+  fiat_id       Int
+  balance       Float    @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  user          User         @relation(fields: [walletuser_id], references: [walletuser_id])
+  fiat_currency FiatCurrency @relation(fields: [fiat_id], references: [fiat_id])
+}
+
+model Payment {
+  payment_id   Int      @id @default(autoincrement())
+  user_id      Int
+  fiat_id      Int
+  amount       Float
+  payment_type String // 'Deposit' or 'Withdrawal'
+  status       String // 'Completed', 'Failed', 'Pending'
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  user          User         @relation(fields: [user_id], references: [user_id])
+  fiat_currency FiatCurrency @relation(fields: [fiat_id], references: [fiat_id])
+}
